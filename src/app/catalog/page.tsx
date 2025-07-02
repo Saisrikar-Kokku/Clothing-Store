@@ -1,14 +1,7 @@
-import Card from "@/components/UI/Card";
-import Badge from "@/components/UI/Badge";
-import { Package, Grid } from "lucide-react";
+import { Grid } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Suspense } from "react";
 import CatalogClient from "@/components/CatalogClient";
-
-// Helper for INR currency formatting
-function formatPrice(price: number) {
-  return price.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
-}
 
 function LoadingSpinner() {
   return (
@@ -57,7 +50,6 @@ async function CatalogContent() {
 export default function Catalog() {
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      {/* @ts-expect-error Async Server Component */}
       <CatalogContent />
     </Suspense>
   );
