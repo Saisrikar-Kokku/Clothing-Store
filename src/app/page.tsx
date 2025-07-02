@@ -1,8 +1,9 @@
 import Card from "@/components/UI/Card";
-import Badge from "@/components/UI/Badge";
-import { Sparkles, Package } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Suspense } from "react";
+import Badge from "@/components/UI/Badge";
+import { Package } from "lucide-react";
 
 function LoadingSpinner() {
   return (
@@ -13,11 +14,6 @@ function LoadingSpinner() {
       </svg>
     </div>
   );
-}
-
-// Helper for INR currency formatting
-function formatPrice(price: number) {
-  return price.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 }
 
 // Helper for category badge color
@@ -42,6 +38,11 @@ const categoryColors: Record<string, string> = {
   'Others': 'default',
   'Other (Custom)': 'default',
 };
+
+// Helper for INR currency formatting
+function formatPrice(price: number) {
+  return price.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+}
 
 async function HomeContent() {
   // Fetch inventory items from Supabase

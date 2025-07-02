@@ -65,7 +65,7 @@ export default function AdminDashboardClient() {
       let inventoryData: InventoryRecord[] = [];
       let suppliersData: SupplierRecord[] = [];
       let salesData: SaleRecord[] = [];
-      let pendingPaymentsRaw: { [key: string]: any }[] = [];
+      let pendingPaymentsRaw: Record<string, unknown>[] = [];
 
       // Fetch inventory data
       const { data: inv, error: invErr } = await supabase.from('inventory').select('*');
@@ -91,37 +91,43 @@ export default function AdminDashboardClient() {
         totalSuppliers: suppliersData.length,
         supplierDues: suppliersData.reduce((sum, supplier) => sum + (supplier.amount_due || 0), 0),
         pendingPayments: pendingPaymentsData.length,
-        totalPendingAmount: pendingPaymentsData.reduce((sum, p) => sum + (p.amount_due || 0), 0),
+        totalPendingAmount: pendingPaymentsData.reduce((sum, p) => {
+          const pay = p as Record<string, unknown>;
+          return sum + Number(pay.amount_due || pay.amount || 0);
+        }, 0),
         recentSales: salesData.map(sale => ({
-          id: sale.id,
-          item: sale.item_name,
-          amount: sale.total_revenue,
-          date: sale.sale_date
+          id: String(sale.id),
+          item: String(sale.item_name),
+          amount: Number(sale.total_revenue),
+          date: String(sale.sale_date)
         })),
         lowStockAlerts: inventoryData.filter(item => item.quantity <= 5).map(item => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          category: item.category,
-          cost_price: item.cost_price,
-          selling_price: item.selling_price
+          id: String(item.id),
+          name: String(item.name),
+          quantity: Number(item.quantity),
+          category: String(item.category),
+          cost_price: Number(item.cost_price),
+          selling_price: Number(item.selling_price)
         })),
         supplierAlerts: suppliersData.filter(supplier => supplier.amount_due > 0).map(supplier => ({
-          id: supplier.id,
-          name: supplier.name,
-          amount: supplier.amount_due,
-          dueDate: supplier.due_date,
-          phone: supplier.phone || ""
+          id: String(supplier.id),
+          name: String(supplier.name),
+          amount: Number(supplier.amount_due),
+          dueDate: String(supplier.due_date),
+          phone: supplier.phone ? String(supplier.phone) : ""
         })),
-        pendingPaymentAlerts: pendingPaymentsData.map(payment => ({
-          id: payment.id,
-          customer: payment.name || payment.customer_name || "",
-          amount: payment.amount || payment.amount_due || 0,
-          dueDate: payment.due_date,
-          items: Array.isArray(payment.items) ? payment.items : [],
-          phone: payment.phone || "",
-          status: payment.status || "pending"
-        })),
+        pendingPaymentAlerts: pendingPaymentsData.map(payment => {
+          const pay = payment as Record<string, unknown>;
+          return {
+            id: String(pay.id),
+            customer: String(pay.name || pay.customer_name || ""),
+            amount: Number(pay.amount || pay.amount_due || 0),
+            dueDate: String(pay.due_date),
+            items: Array.isArray(pay.items) ? (pay.items as unknown[]).map(String) : [],
+            phone: pay.phone ? String(pay.phone) : "",
+            status: pay.status ? String(pay.status) : "pending"
+          };
+        }),
       });
       setLastUpdated(new Date());
     } catch (error) {
