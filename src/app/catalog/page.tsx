@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { Grid } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Suspense } from "react";

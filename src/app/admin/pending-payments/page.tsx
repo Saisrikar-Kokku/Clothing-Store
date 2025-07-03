@@ -111,6 +111,8 @@ export default function PendingPaymentsPage() {
         setForm({ ...defaultForm });
         setEditId(null);
         fetchPayments();
+        localStorage.setItem('dashboard-data-updated', Date.now().toString());
+        window.dispatchEvent(new Event('dashboard-data-updated'));
       }
     } else {
       // Add mode
@@ -121,6 +123,8 @@ export default function PendingPaymentsPage() {
         setShowModal(false);
         setForm({ ...defaultForm });
         fetchPayments();
+        localStorage.setItem('dashboard-data-updated', Date.now().toString());
+        window.dispatchEvent(new Event('dashboard-data-updated'));
       }
     }
     setFormLoading(false);
@@ -131,7 +135,11 @@ export default function PendingPaymentsPage() {
     setDeletingId(id);
     const { error } = await supabase.from("pending_payments").delete().eq("id", id);
     setDeletingId(null);
-    if (!error) fetchPayments();
+    if (!error) {
+      fetchPayments();
+      localStorage.setItem('dashboard-data-updated', Date.now().toString());
+      window.dispatchEvent(new Event('dashboard-data-updated'));
+    }
     // Optionally, show error feedback if needed
   };
 
@@ -140,9 +148,11 @@ export default function PendingPaymentsPage() {
     const { error } = await supabase.from("pending_payments").update({ status: "paid" }).eq("id", id);
     if (!error) {
       setPayments((prev) => prev.filter((p) => p.id !== id));
+      setMarkingPaidId(null);
+      fetchPayments();
+      localStorage.setItem('dashboard-data-updated', Date.now().toString());
+      window.dispatchEvent(new Event('dashboard-data-updated'));
     }
-    setMarkingPaidId(null);
-    if (!error) fetchPayments();
     // Optionally, show error feedback if needed
   };
 

@@ -117,9 +117,11 @@ export default function CatalogClient({ items }: { items: CatalogItem[] }) {
                 {itemsByCategory[category].map((item) => (
                   <Card key={item.id} className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-2 sm:p-4">
                     {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full min-h-16 max-h-20 sm:max-h-24 object-cover rounded mb-1 sm:mb-2" />
+                      <div className="relative w-full h-24 sm:h-32 bg-white rounded mb-1 sm:mb-2 flex items-center justify-center">
+                        <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-contain p-1" />
+                      </div>
                     ) : (
-                      <div className="w-full min-h-16 max-h-20 sm:max-h-24 flex items-center justify-center bg-gray-100 rounded mb-1 sm:mb-2">
+                      <div className="relative w-full h-24 sm:h-32 flex items-center justify-center bg-gray-100 rounded mb-1 sm:mb-2">
                         <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
                           <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />

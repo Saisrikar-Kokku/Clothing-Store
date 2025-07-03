@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Card from "@/components/UI/Card";
 import { Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
