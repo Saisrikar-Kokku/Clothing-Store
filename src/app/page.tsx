@@ -7,6 +7,7 @@ import Badge from "@/components/UI/Badge";
 import { Package } from "lucide-react";
 import Link from "next/link";
 import type { InventoryItem } from '@/lib/supabase';
+import Image from 'next/image';
 
 function LoadingSpinner() {
   return (
@@ -117,7 +118,7 @@ async function HomeContent() {
               <Link key={item.id} href={`/catalog/${item.id}`} className="block">
                 <Card className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4 cursor-pointer">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
+                    <Image src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" width={320} height={240} />
                   ) : (
                     <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
                       <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -185,7 +186,7 @@ async function HomeContent() {
               <Link key={item.id} href={`/catalog/${item.id}`} className="block">
                 <Card className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4 cursor-pointer">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
+                    <Image src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" width={320} height={240} />
                   ) : (
                     <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
                       <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

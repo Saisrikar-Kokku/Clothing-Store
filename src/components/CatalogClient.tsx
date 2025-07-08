@@ -4,6 +4,7 @@ import Badge from "@/components/UI/Badge";
 import { Package } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import Image from 'next/image';
 
 interface CatalogItem {
   id: string;
@@ -143,7 +144,7 @@ export default function CatalogClient({ items }: { items: CatalogItem[] }) {
                       <Card className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-2 sm:p-4 cursor-pointer">
                         {item.image_url ? (
                           <div className="relative w-full h-24 sm:h-32 bg-white rounded mb-1 sm:mb-2 flex items-center justify-center">
-                            <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-contain p-1" />
+                            <Image src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-contain p-1" width={128} height={128} />
                           </div>
                         ) : (
                           <div className="relative w-full h-24 sm:h-32 flex items-center justify-center bg-gray-100 rounded mb-1 sm:mb-2">

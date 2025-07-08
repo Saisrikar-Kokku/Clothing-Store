@@ -4,6 +4,7 @@ import Card from "@/components/UI/Card";
 import Badge from "@/components/UI/Badge";
 import { Package, ArrowLeft, Palette, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
+import Image from 'next/image';
 
 interface ProductDetailItem {
   id: string;
@@ -43,7 +44,7 @@ export default function ProductDetailClient({
       {parentItem && (
         <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded mb-4">
           {parentItem.image_url ? (
-            <img src={parentItem.image_url} alt={parentItem.name} className="w-16 h-16 object-contain rounded border bg-white" />
+            <Image src={parentItem.image_url} alt={parentItem.name} className="w-16 h-16 object-contain rounded border bg-white" width={64} height={64} />
           ) : (
             <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded border">
               <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -83,10 +84,12 @@ export default function ProductDetailClient({
         <div className="space-y-4">
           <div className="relative w-full h-96 bg-white rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
             {displayItem.image_url ? (
-              <img 
+              <Image 
                 src={displayItem.image_url} 
                 alt={displayItem.name} 
                 className="w-full h-full object-contain p-4"
+                width={320}
+                height={320}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-gray-400">
@@ -113,10 +116,12 @@ export default function ProductDetailClient({
                   }`}
                 >
                   {variant.image_url ? (
-                    <img 
+                    <Image 
                       src={variant.image_url} 
                       alt={variant.name} 
                       className="w-full h-full object-contain p-1"
+                      width={64}
+                      height={64}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -204,10 +209,12 @@ export default function ProductDetailClient({
                     <div className="flex items-center space-x-2 mb-2">
                       {variant.image_url && (
                         <div className="w-8 h-8 rounded border border-gray-200 overflow-hidden">
-                          <img 
+                          <Image 
                             src={variant.image_url} 
                             alt={variant.name} 
                             className="w-full h-full object-cover"
+                            width={64}
+                            height={64}
                           />
                         </div>
                       )}

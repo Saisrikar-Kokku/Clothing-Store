@@ -61,7 +61,7 @@ async function ProductDetailContent({ params }: { params: { id: string } }) {
   );
 }
 
-export default function ProductDetail({ params }: { params: { id: string } }) {
+export default function Page({ params }: { params: { id: string } }) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <ProductDetailContent params={params} />

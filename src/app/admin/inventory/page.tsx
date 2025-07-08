@@ -6,6 +6,7 @@ import Button from "@/components/UI/Button";
 import Badge from "@/components/UI/Badge";
 import { Plus, Edit, Trash2, Package, Search } from "lucide-react";
 import { supabase, InventoryItem } from '@/lib/supabase';
+import Image from 'next/image';
 
 const categories = [
   "Sarees (Cotton)",
@@ -647,7 +648,7 @@ export default function InventoryPage() {
                 className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
               {formData.image && (
-                <img src={formData.image} alt="Preview" className="mt-2 h-24 object-contain border rounded" />
+                <Image src={formData.image} alt="Preview" width={48} height={48} className="mt-2 h-24 object-contain border rounded" />
               )}
             </div>
             <div className="sm:col-span-2">
@@ -769,7 +770,7 @@ export default function InventoryPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         />
                         {variant.image && (
-                          <img src={variant.image} alt="Variant Preview" className="mt-2 h-16 object-contain border rounded" />
+                          <Image src={variant.image} alt="Variant Preview" width={48} height={48} className="mt-2 h-16 object-contain border rounded" />
                         )}
                       </div>
                       <Button type="button" variant="danger" size="sm" onClick={() => setNewVariants(newVariants.filter((_, i) => i !== index))} className="mt-2">Remove</Button>
@@ -846,7 +847,7 @@ export default function InventoryPage() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                           />
                           {variantEditForm && variantEditForm.image && (
-                            <img src={variantEditForm.image} alt="Variant Preview" className="mt-2 h-16 object-contain border rounded" />
+                            <Image src={variantEditForm.image} alt="Variant Preview" width={48} height={48} className="mt-2 h-16 object-contain border rounded" />
                           )}
                         </div>
                         <div className="flex gap-2 mt-3">
@@ -1047,7 +1048,7 @@ export default function InventoryPage() {
                     <tr key={item.id}>
                       <td className="px-4 sm:px-6 py-4">
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-12 h-12 object-contain rounded border bg-white" />
+                          <Image src={item.image_url} alt={item.name} width={48} height={48} className="w-12 h-12 object-contain rounded border bg-white" />
                         ) : (
                           <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border">
                             <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
