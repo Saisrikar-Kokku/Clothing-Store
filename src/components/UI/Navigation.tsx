@@ -41,8 +41,10 @@ export default function Navigation() {
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <span
-                className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105"
-                style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}
+                className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow animate-harika-bounce animate-harika-pulse transition-transform duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                tabIndex={0}
+                aria-label="Harika Clothing Store"
+                style={{ letterSpacing: '0.12em', lineHeight: 1.1 }}
               >
                 HARIKA CLOTHING STORE
               </span>

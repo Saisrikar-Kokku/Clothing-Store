@@ -24,27 +24,22 @@ body {
 
 /* Remove dark mode for now to avoid confusion */
 
-.harika-gradient-heading {
-  background: linear-gradient(90deg, #f472b6, #a21caf, #6366f1, #f472b6);
-  background-size: 200% 200%;
+.harika-animated-gradient {
+  background: linear-gradient(270deg, #ec4899, #ef4444, #f59e42, #facc15, #ec4899);
+  background-size: 1000% 1000%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  text-shadow: 0 2px 16px rgba(162,28,175,0.10), 0 1px 2px rgba(0,0,0,0.08);
-}
-
-.harika-gradient-move {
-  background: linear-gradient(90deg, #f472b6, #a21caf, #6366f1, #f472b6);
-  background-size: 200% 200%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  animation: harika-gradient-move 3s linear infinite alternate;
+  animation: harika-gradient-move 6s linear infinite;
 }
 
 @keyframes harika-gradient-move {
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
+}
+
+.harika-glow {
+  text-shadow: 0 0 8px #fbbf24, 0 0 16px #f472b6, 0 0 2px #fff;
 }
 
 .animate-fade-in-slow {
@@ -56,17 +51,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.harika-animated-gradient {
-  background: linear-gradient(270deg, #ec4899, #ef4444, #f59e42, #facc15, #ec4899);
-  background-size: 1000% 1000%;
-  animation: harika-gradient-move 6s linear infinite;
+@keyframes harika-bounce {
+  0%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-4px); }
+  40% { transform: translateY(2px); }
+  60% { transform: translateY(-2px); }
+  80% { transform: translateY(1px); }
 }
-
-@keyframes harika-gradient-move {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+.animate-harika-bounce {
+  animation: harika-bounce 2.5s infinite;
 }
-
-.harika-glow {
-  text-shadow: 0 0 8px #fbbf24, 0 0 16px #f472b6, 0 0 2px #fff;
+@keyframes harika-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f472b6); }
+  50% { filter: drop-shadow(0 0 24px #fbbf24) drop-shadow(0 0 32px #f472b6); }
+}
+.animate-harika-pulse {
+  animation: harika-pulse 2.5s infinite;
 }

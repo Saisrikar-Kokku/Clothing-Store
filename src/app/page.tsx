@@ -93,7 +93,7 @@ async function HomeContent() {
       {/* Hero Section */}
       <div className="text-center mb-6 sm:mb-10">
         <h1
-          className="text-3xl sm:text-5xl font-extrabold mb-2 sm:mb-4 harika-gradient-heading animate-fade-in-slow"
+          className="text-3xl sm:text-5xl font-extrabold mb-2 sm:mb-4 animate-fade-in-slow"
           style={{ letterSpacing: '0.03em', lineHeight: 1.1 }}
         >
           Welcome to <span className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105" style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}>HARIKA CLOTHING STORE</span>
