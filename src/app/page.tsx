@@ -96,7 +96,7 @@ async function HomeContent() {
           className="text-3xl sm:text-5xl font-extrabold mb-2 sm:mb-4 animate-fade-in-slow"
           style={{ letterSpacing: '0.03em', lineHeight: 1.1 }}
         >
-          Welcome to <span className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105" style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}>HARIKA CLOTHING STORE</span>
+          Welcome to <span className="font-extrabold tracking-wider text-3xl sm:text-4xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105" style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}>HARIKA CLOTHING STORE</span>
         </h1>
         <p className="text-base sm:text-xl text-gray-700 max-w-2xl mx-auto animate-fade-in-slow delay-150">
           Discover beautiful women&apos;s clothing and accessories.<br/>

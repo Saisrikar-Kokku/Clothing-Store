@@ -41,10 +41,10 @@ export default function Navigation() {
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <span
-                className="font-extrabold tracking-wide text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105"
+                className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105"
                 tabIndex={0}
                 aria-label="Harika Clothing Store"
-                style={{ letterSpacing: '0.04em', lineHeight: 1.1 }}
+                style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}
               >
                 HARIKA CLOTHING STORE
               </span>
