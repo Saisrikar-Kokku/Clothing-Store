@@ -23,6 +23,20 @@ export interface InventoryItem {
   image_url?: string
   created_at: string
   updated_at: string
+  has_variants?: boolean
+  base_item_id?: string // For variants, this points to the main item
+}
+
+export interface ItemVariant {
+  id: string
+  base_item_id: string
+  name: string
+  color: string
+  size?: string
+  quantity: number
+  image_url?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Category {

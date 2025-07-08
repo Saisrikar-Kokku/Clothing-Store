@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { Suspense } from "react";
 import Badge from "@/components/UI/Badge";
 import { Package } from "lucide-react";
+import Link from "next/link";
+import type { InventoryItem } from '@/lib/supabase';
 
 function LoadingSpinner() {
   return (
@@ -43,6 +45,23 @@ const categoryColors: Record<string, string> = {
 // Helper for INR currency formatting
 function formatPrice(price: number) {
   return price.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+}
+
+// Helper: get variants for a main item
+function getVariantsForItem(itemId: string, allItems: unknown[]) {
+  return allItems.filter(i => (i as InventoryItem).base_item_id === itemId) as InventoryItem[];
+}
+
+// Helper: get a color style for a color name
+function getColorBadgeStyle(colorName: string) {
+  const safeColor = colorName.toLowerCase().replace(/[^a-z]/g, '');
+  const cssColors = [
+    'red','blue','green','yellow','orange','purple','pink','brown','black','white','gray','grey','teal','cyan','lime','indigo','violet','gold','silver','maroon','navy','olive','aqua','fuchsia'
+  ];
+  if (cssColors.includes(safeColor)) {
+    return { backgroundColor: safeColor, color: safeColor === 'yellow' || safeColor === 'white' ? '#222' : '#fff', border: '1px solid #ddd' };
+  }
+  return { backgroundColor: '#e5e7eb', color: '#222', border: '1px solid #ddd' };
 }
 
 async function HomeContent() {
@@ -91,50 +110,67 @@ async function HomeContent() {
           <h2 className="text-lg sm:text-2xl font-bold text-gray-900">New Arrivals</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {newArrivals.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4">
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
-              ) : (
-                <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
-                  <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />
-                  </svg>
-                </div>
-              )}
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-900">{item.name}</h3>
-                {item.quantity < 5 ? (
-                  <Badge variant="danger" size="sm">Low Stock</Badge>
-                ) : (
-                  <Badge variant="success" size="sm">New</Badge>
-                )}
-              </div>
-              <p className="text-gray-600 mb-2 text-xs sm:text-base">{item.description}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 sm:space-x-4">
-                  <span className="text-sm sm:text-lg font-bold text-green-600">
-                    {formatPrice(item.selling_price)}
-                  </span>
-                  <div className="flex items-center text-xs sm:text-sm text-gray-500">
-                    <Package className="w-4 h-4 mr-1" />
-                    {item.quantity} in stock
+          {newArrivals.map((item) => {
+            const variants = item.has_variants ? getVariantsForItem(item.id, allItems) : [];
+            const colorNames = variants.map((v: InventoryItem) => v.name).filter(Boolean);
+            return (
+              <Link key={item.id} href={`/catalog/${item.id}`} className="block">
+                <Card className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4 cursor-pointer">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
+                  ) : (
+                    <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
+                      <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+                        <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-sm sm:text-lg font-semibold text-gray-900">{item.name}</h3>
+                    {item.quantity < 5 ? (
+                      <Badge variant="danger" size="sm">Low Stock</Badge>
+                    ) : (
+                      <Badge variant="success" size="sm">New</Badge>
+                    )}
                   </div>
-                </div>
-                <Badge variant={categoryColors[item.category] as 'info' | 'warning' | 'success' | 'danger' | 'default' || 'default'}>
-                  {item.category}
-                </Badge>
-              </div>
-              <button
-                className="mt-2 w-auto px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                aria-label={`View details for ${item.name}`}
-                disabled
-              >
-                View Details
-              </button>
-            </Card>
-          ))}
+                  <p className="text-gray-600 mb-2 text-xs sm:text-base">{item.description}</p>
+                  {/* Color summary */}
+                  {item.has_variants && colorNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1 sm:mb-2 items-center">
+                      <span className="text-xs text-gray-500 mr-1">Colors:</span>
+                      {colorNames.map((color, i) => (
+                        <span
+                          key={color + i}
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold shadow border"
+                          style={getColorBadgeStyle(color)}
+                        >
+                          {color}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                      <span className="text-sm sm:text-lg font-bold text-green-600">
+                        {formatPrice(item.selling_price)}
+                      </span>
+                      <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                        <Package className="w-4 h-4 mr-1" />
+                        {item.quantity} in stock
+                      </div>
+                    </div>
+                    <Badge variant={categoryColors[item.category] as 'info' | 'warning' | 'success' | 'danger' | 'default' || 'default'}>
+                      {item.category}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 w-auto px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors inline-block text-center">
+                    View Details
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -142,43 +178,60 @@ async function HomeContent() {
       <section>
         <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-6">All Available Items</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {allItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4">
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
-              ) : (
-                <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
-                  <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />
-                  </svg>
-                </div>
-              )}
-              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2">{item.name}</h3>
-              <p className="text-gray-600 mb-2 text-xs sm:text-sm">{item.description}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 sm:space-x-4">
-                  <span className="text-sm sm:text-lg font-bold text-green-600">
-                    {formatPrice(item.selling_price)}
-                  </span>
-                  <div className="flex items-center text-xs sm:text-sm text-gray-500">
-                    <Package className="w-4 h-4 mr-1" />
-                    {item.quantity}
+          {allItems.map((item) => {
+            const variants = item.has_variants ? getVariantsForItem(item.id, allItems) : [];
+            const colorNames = variants.map((v: InventoryItem) => v.name).filter(Boolean);
+            return (
+              <Link key={item.id} href={`/catalog/${item.id}`} className="block">
+                <Card className="hover:shadow-lg hover:scale-[1.03] transition-transform duration-200 p-3 sm:p-4 cursor-pointer">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full min-h-24 max-h-60 sm:max-h-80 object-contain bg-white rounded mb-2" />
+                  ) : (
+                    <div className="w-full min-h-24 max-h-60 sm:max-h-80 flex items-center justify-center bg-gray-100 rounded mb-2">
+                      <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+                        <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />
+                      </svg>
+                    </div>
+                  )}
+                  <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2">{item.name}</h3>
+                  <p className="text-gray-600 mb-2 text-xs sm:text-sm">{item.description}</p>
+                  {/* Color summary */}
+                  {item.has_variants && colorNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1 sm:mb-2 items-center">
+                      <span className="text-xs text-gray-500 mr-1">Colors:</span>
+                      {colorNames.map((color, i) => (
+                        <span
+                          key={color + i}
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold shadow border"
+                          style={getColorBadgeStyle(color)}
+                        >
+                          {color}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                      <span className="text-sm sm:text-lg font-bold text-green-600">
+                        {formatPrice(item.selling_price)}
+                      </span>
+                      <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                        <Package className="w-4 h-4 mr-1" />
+                        {item.quantity}
+                      </div>
+                    </div>
+                    <Badge variant={categoryColors[item.category] as 'info' | 'warning' | 'success' | 'danger' | 'default' || 'default'}>
+                      {item.category}
+                    </Badge>
                   </div>
-                </div>
-                <Badge variant={categoryColors[item.category] as 'info' | 'warning' | 'success' | 'danger' | 'default' || 'default'}>
-                  {item.category}
-                </Badge>
-              </div>
-              <button
-                className="mt-2 w-auto px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                aria-label={`View details for ${item.name}`}
-                disabled
-              >
-                View Details
-              </button>
-            </Card>
-          ))}
+                  <div className="mt-2 w-auto px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors inline-block text-center">
+                    View Details
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </div>

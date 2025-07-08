@@ -56,6 +56,29 @@ function toCSV(items: InventoryItem[]) {
   return [header, ...rows].map(row => row.map((cell: string | number) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
+interface VariantForm {
+  name: string;
+  color: string;
+  quantity: string;
+  selling_price: string;
+  image: string;
+}
+
+interface VariantDB {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  cost_price: number;
+  selling_price: number;
+  quantity: number;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  has_variants?: boolean;
+  base_item_id?: string;
+}
+
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,7 +92,15 @@ export default function InventoryPage() {
     selling_price: '',
     quantity: '',
     image: '',
+    has_variants: false,
   });
+  const [variants, setVariants] = useState<Array<{
+    name: string;
+    color: string;
+    quantity: string;
+    selling_price: string;
+    image: string;
+  }>>([]);
   const [customCategory, setCustomCategory] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -78,24 +109,43 @@ export default function InventoryPage() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
+  const [variantEditForm, setVariantEditForm] = useState<VariantForm | null>(null);
+  const [newVariants, setNewVariants] = useState<VariantForm[]>([]);
+  const [existingVariants, setExistingVariants] = useState<VariantDB[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch inventory from Supabase on mount
+  // Move fetchInventory above handleRefresh
+  const fetchInventory = async () => {
+    setFetching(true);
+    const { data, error } = await supabase
+      .from('inventory')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) {
+      alert('Error fetching inventory: ' + error.message);
+      setItems([]);
+    } else if (data) {
+      setItems(data as VariantDB[]);
+    }
+    setFetching(false);
+  };
+
+  // Fetch variants for the main item when editing
   useEffect(() => {
-    const fetchInventory = async () => {
-      setFetching(true);
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .order('created_at', { ascending: true });
-      if (error) {
-        console.error('Error fetching inventory:', error.message);
-      } else if (data) {
-        setItems(data as InventoryItem[]);
-      }
-      setFetching(false);
-    };
-    fetchInventory();
-  }, []);
+    if (editingItem && editingItem.has_variants) {
+      (async () => {
+        const { data: variantRows } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('base_item_id', editingItem.id)
+          .order('created_at', { ascending: true });
+        setExistingVariants(variantRows || []);
+      })();
+    } else if (!editingItem) {
+      setExistingVariants([]);
+    }
+  }, [editingItem]);
 
   const filteredItems = items.filter(item => {
     const matchesSearch =
@@ -119,6 +169,20 @@ export default function InventoryPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchInventory();
+    if (editingItem && editingItem.has_variants) {
+      const { data: variantRows } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('base_item_id', editingItem.id)
+        .order('created_at', { ascending: true });
+      setExistingVariants(variantRows || []);
+    }
+    setRefreshing(false);
+  };
+
   const handleAddItem = async () => {
     if (!formData.name || !formData.category || !formData.description) return;
     setLoading(true);
@@ -134,12 +198,16 @@ export default function InventoryPage() {
       const { error } = await supabase.storage.from('inventory-images').upload(file.name, file, { upsert: true });
       if (error) {
         alert('Image upload failed: ' + (error as Error).message);
+        setLoading(false);
         return;
       }
       const { data: publicUrlData } = supabase.storage.from('inventory-images').getPublicUrl(file.name);
       imageUrl = publicUrlData.publicUrl;
     }
-    const { error: insertError } = await supabase.from('inventory').insert([
+    // Always set has_variants true if variants are present
+    const hasVariants = formData.has_variants || (variants && variants.length > 0);
+    // Insert the main item
+    const { data: insertedItem, error: insertError } = await supabase.from('inventory').insert([
       {
         name: formData.name,
         category: formData.category === 'Other (Custom)' ? customCategory : formData.category,
@@ -148,11 +216,59 @@ export default function InventoryPage() {
         selling_price: parseFloat(formData.selling_price),
         quantity: parseInt(formData.quantity),
         image_url: imageUrl,
+        has_variants: hasVariants,
       },
-    ]);
+    ]).select().single();
     if (insertError) {
       alert('Failed to add item: ' + insertError.message);
+      setLoading(false);
       return;
+    }
+    // If there are variants, insert them
+    const variantInsertErrors: string[] = [];
+    if (hasVariants && variants.length > 0 && insertedItem) {
+      const variantPromises = variants.map(async (variant) => {
+        let variantImageUrl = '';
+        if (variant.image) {
+          function dataURLtoFile(dataurl: string, filename: string) {
+            const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+            return new File([u8arr], filename, { type: mime });
+          }
+          const file = dataURLtoFile(variant.image, `${variant.name.replace(/\s+/g, '_')}_${Date.now()}.png`);
+          const { error } = await supabase.storage.from('inventory-images').upload(file.name, file, { upsert: true });
+          if (error) {
+            console.error('Variant image upload failed:', error);
+            variantInsertErrors.push('Image upload failed for variant: ' + variant.name);
+            return;
+          }
+          const { data: publicUrlData } = supabase.storage.from('inventory-images').getPublicUrl(file.name);
+          variantImageUrl = publicUrlData.publicUrl;
+        }
+        const { error: variantInsertError } = await supabase.from('inventory').insert([
+          {
+            name: variant.name || `${formData.name} - ${variant.color}`,
+            category: formData.category === 'Other (Custom)' ? customCategory : formData.category,
+            description: `${formData.description} - ${variant.color} variant`,
+            cost_price: parseFloat(formData.cost_price),
+            selling_price: parseFloat(variant.selling_price) || parseFloat(formData.selling_price),
+            quantity: parseInt(variant.quantity) || 0,
+            image_url: variantImageUrl,
+            has_variants: false,
+            base_item_id: insertedItem.id,
+          },
+        ]);
+        if (variantInsertError) {
+          console.error('Variant insert failed:', variantInsertError);
+          variantInsertErrors.push('Insert failed for variant: ' + variant.name);
+        }
+      });
+      await Promise.all(variantPromises);
+    }
+    if (variantInsertErrors.length > 0) {
+      alert('Some variants failed to add: ' + variantInsertErrors.join(', '));
+    } else if (hasVariants && variants.length > 0) {
+      alert('All variants added successfully!');
     }
     setSuccessMessage('Item successfully added!');
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -165,7 +281,9 @@ export default function InventoryPage() {
       selling_price: '',
       quantity: '',
       image: '',
+      has_variants: false,
     });
+    setVariants([]);
     setCustomCategory('');
     const { data, error } = await supabase
       .from('inventory')
@@ -173,7 +291,6 @@ export default function InventoryPage() {
       .order('created_at', { ascending: true });
     if (!error && data) setItems(data as InventoryItem[]);
     setLoading(false);
-    
     // Trigger events to refresh admin dashboard
     localStorage.setItem('inventory-updated', Date.now().toString());
     window.dispatchEvent(new Event('inventory-updated'));
@@ -191,15 +308,18 @@ export default function InventoryPage() {
       selling_price: item.selling_price.toString(),
       quantity: item.quantity.toString(),
       image: item.image_url || '',
+      has_variants: false,
     });
   };
 
   const handleUpdateItem = async () => {
     if (!editingItem) return;
-    
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Always set has_variants true if variants are present
+      const hasVariants = formData.has_variants || (variants && variants.length > 0);
+      // Update the main item
+      const { error: updateError } = await supabase
         .from('inventory')
         .update({
           name: formData.name,
@@ -209,27 +329,70 @@ export default function InventoryPage() {
           selling_price: parseFloat(formData.selling_price),
           quantity: parseInt(formData.quantity),
           image_url: formData.image,
+          has_variants: hasVariants,
         })
         .eq('id', editingItem.id);
-
-      if (error) {
-        alert('Failed to update item: ' + error.message);
+      if (updateError) {
+        alert('Failed to update item: ' + updateError.message);
+        setLoading(false);
         return;
       }
-
+      // Insert new variants if any
+      const variantInsertErrors: string[] = [];
+      if (hasVariants && variants.length > 0) {
+        const variantPromises = variants.map(async (variant) => {
+          let variantImageUrl = '';
+          if (variant.image) {
+            function dataURLtoFile(dataurl: string, filename: string) {
+              const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+              for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+              return new File([u8arr], filename, { type: mime });
+            }
+            const file = dataURLtoFile(variant.image, `${variant.name.replace(/\s+/g, '_')}_${Date.now()}.png`);
+            const { error } = await supabase.storage.from('inventory-images').upload(file.name, file, { upsert: true });
+            if (error) {
+              console.error('Variant image upload failed:', error);
+              variantInsertErrors.push('Image upload failed for variant: ' + variant.name);
+              return;
+            }
+            const { data: publicUrlData } = supabase.storage.from('inventory-images').getPublicUrl(file.name);
+            variantImageUrl = publicUrlData.publicUrl;
+          }
+          const { error: variantInsertError } = await supabase.from('inventory').insert([
+            {
+              name: variant.name || `${formData.name} - ${variant.color}`,
+              category: formData.category === 'Other (Custom)' ? customCategory : formData.category,
+              description: `${formData.description} - ${variant.color} variant`,
+              cost_price: parseFloat(formData.cost_price),
+              selling_price: parseFloat(variant.selling_price) || parseFloat(formData.selling_price),
+              quantity: parseInt(variant.quantity) || 0,
+              image_url: variantImageUrl,
+              has_variants: false,
+              base_item_id: editingItem.id,
+            },
+          ]);
+          if (variantInsertError) {
+            console.error('Variant insert failed:', variantInsertError);
+            variantInsertErrors.push('Insert failed for variant: ' + variant.name);
+          }
+        });
+        await Promise.all(variantPromises);
+      }
+      if (variantInsertErrors.length > 0) {
+        alert('Some variants failed to add: ' + variantInsertErrors.join(', '));
+      } else if (hasVariants && variants.length > 0) {
+        alert('All variants added successfully!');
+      }
       setSuccessMessage('Item successfully updated!');
       setTimeout(() => setSuccessMessage(''), 3000);
-      
       // Refresh the inventory list
       const { data, error: fetchError } = await supabase
         .from('inventory')
         .select('*')
         .order('created_at', { ascending: true });
-      
       if (!fetchError && data) {
         setItems(data as InventoryItem[]);
       }
-      
       setEditingItem(null);
       setFormData({
         name: '',
@@ -239,9 +402,10 @@ export default function InventoryPage() {
         selling_price: '',
         quantity: '',
         image: '',
+        has_variants: false,
       });
+      setVariants([]);
       setCustomCategory('');
-      
       // Trigger events to refresh admin dashboard
       localStorage.setItem('inventory-updated', Date.now().toString());
       window.dispatchEvent(new Event('inventory-updated'));
@@ -305,7 +469,11 @@ export default function InventoryPage() {
       selling_price: '',
       quantity: '',
       image: '',
+      has_variants: false,
     });
+    setNewVariants([]);
+    setExistingVariants([]);
+    setCustomCategory('');
   };
 
   const resetFilters = () => {
@@ -324,10 +492,16 @@ export default function InventoryPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Inventory Management</h1>
           <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your store inventory</p>
         </div>
-        <Button onClick={() => setShowAddForm(true)} className="flex items-center py-2 sm:py-2.5 px-4 text-base">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Item
-        </Button>
+        <div className="flex gap-2 items-center">
+          <Button onClick={handleRefresh} variant="secondary" size="sm" disabled={refreshing}>
+            {refreshing ? <span className="animate-spin mr-2">🔄</span> : <span className="mr-2">🔄</span>}
+            Refresh
+          </Button>
+          <Button onClick={() => setShowAddForm(true)} className="flex items-center py-2 sm:py-2.5 px-4 text-base">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Item
+          </Button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -476,7 +650,283 @@ export default function InventoryPage() {
                 <img src={formData.image} alt="Preview" className="mt-2 h-24 object-contain border rounded" />
               )}
             </div>
+            <div className="sm:col-span-2">
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="hasVariants"
+                  checked={formData.has_variants}
+                  onChange={(e) => setFormData({ ...formData, has_variants: e.target.checked })}
+                  className="form-checkbox h-4 w-4 text-blue-600"
+                />
+                <label htmlFor="hasVariants" className="text-sm font-medium text-gray-700">
+                  This item has multiple colors/variants
+                </label>
+              </div>
+            </div>
           </div>
+
+          {/* Variants Section (add new variants) */}
+          {formData.has_variants && (
+            <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900">Color Variants</h4>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setNewVariants([...newVariants, {
+                    name: '',
+                    color: '',
+                    quantity: '',
+                    selling_price: '',
+                    image: ''
+                  }])}
+                  className="flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Variant
+                </Button>
+              </div>
+              {newVariants.length === 0 ? (
+                <p className="text-gray-500 text-sm">No variants added yet. Click &quot;Add Variant&quot; to add color options.</p>
+              ) : (
+                <div className="space-y-4">
+                  {newVariants.map((variant, index) => (
+                    <div key={index} className="p-4 border border-gray-200 rounded-lg bg-white">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Variant Name</label>
+                          <input
+                            type="text"
+                            value={variant.name}
+                            onChange={e => {
+                              const updated = [...newVariants];
+                              updated[index].name = e.target.value;
+                              setNewVariants(updated);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
+                          <input
+                            type="text"
+                            value={variant.color}
+                            onChange={e => {
+                              const updated = [...newVariants];
+                              updated[index].color = e.target.value;
+                              setNewVariants(updated);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                          <input
+                            type="number"
+                            value={variant.quantity}
+                            onChange={e => {
+                              const updated = [...newVariants];
+                              updated[index].quantity = e.target.value;
+                              setNewVariants(updated);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={variant.selling_price}
+                            onChange={e => {
+                              const updated = [...newVariants];
+                              updated[index].selling_price = e.target.value;
+                              setNewVariants(updated);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Variant Image (Optional)</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                const updated = [...newVariants];
+                                updated[index].image = reader.result as string;
+                                setNewVariants(updated);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        {variant.image && (
+                          <img src={variant.image} alt="Variant Preview" className="mt-2 h-16 object-contain border rounded" />
+                        )}
+                      </div>
+                      <Button type="button" variant="danger" size="sm" onClick={() => setNewVariants(newVariants.filter((_, i) => i !== index))} className="mt-2">Remove</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Existing Variants Section (edit/delete) */}
+          {editingItem && formData.has_variants && existingVariants.length > 0 && (
+            <div className="mt-8">
+              <h4 className="text-base font-semibold mb-2">Existing Variants</h4>
+              <div className="space-y-4">
+                {existingVariants.map((variant, idx) => (
+                  <div key={variant.id} className="p-4 border border-gray-200 rounded-lg bg-white">
+                    {editingVariantIndex === idx ? (
+                      <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Variant Name</label>
+                            <input
+                              type="text"
+                              value={variantEditForm ? variantEditForm.name : ''}
+                              onChange={e => setVariantEditForm(variantEditForm ? { ...variantEditForm, name: e.target.value } : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
+                            <input
+                              type="text"
+                              value={variantEditForm ? variantEditForm.color : ''}
+                              onChange={e => setVariantEditForm(variantEditForm ? { ...variantEditForm, color: e.target.value } : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                            <input
+                              type="number"
+                              value={variantEditForm ? variantEditForm.quantity : ''}
+                              onChange={e => setVariantEditForm(variantEditForm ? { ...variantEditForm, quantity: e.target.value } : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={variantEditForm ? variantEditForm.selling_price : ''}
+                              onChange={e => setVariantEditForm(variantEditForm ? { ...variantEditForm, selling_price: e.target.value } : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Variant Image (Optional)</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file && variantEditForm) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setVariantEditForm({ ...variantEditForm, image: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          {variantEditForm && variantEditForm.image && (
+                            <img src={variantEditForm.image} alt="Variant Preview" className="mt-2 h-16 object-contain border rounded" />
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={async () => {
+                              if (!variantEditForm) {
+                                alert('Variant form is not loaded.');
+                                return;
+                              }
+                              const { error } = await supabase
+                                .from('inventory')
+                                .update({
+                                  name: variantEditForm.name,
+                                  quantity: parseInt(variantEditForm.quantity),
+                                  selling_price: parseFloat(variantEditForm.selling_price),
+                                })
+                                .eq('id', variant.id);
+                              if (error) {
+                                alert('Failed to update variant: ' + error.message);
+                              } else {
+                                setEditingVariantIndex(null);
+                                // Refetch variants
+                                const { data: variantRows } = await supabase
+                                  .from('inventory')
+                                  .select('*')
+                                  .eq('base_item_id', editingItem.id)
+                                  .order('created_at', { ascending: true });
+                                setExistingVariants(variantRows || []);
+                              }
+                            }}
+                          >Save</Button>
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setEditingVariantIndex(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">{variant.name}</div>
+                          <div className="text-xs text-gray-500">Qty: {variant.quantity} | Price: ₹{variant.selling_price}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" variant="secondary" onClick={() => {
+                            setEditingVariantIndex(idx);
+                            setVariantEditForm({
+                              name: variant.name || '',
+                              color: '',
+                              quantity: variant.quantity?.toString() || '',
+                              selling_price: variant.selling_price?.toString() || '',
+                              image: variant.image_url || '',
+                            });
+                          }}>Edit</Button>
+                          <Button type="button" size="sm" variant="danger" onClick={async () => {
+                            if (confirm('Are you sure you want to delete this variant?')) {
+                              const { error } = await supabase.from('inventory').delete().eq('id', variant.id);
+                              if (error) {
+                                alert('Failed to delete variant: ' + error.message);
+                              } else {
+                                // Refetch variants
+                                const { data: variantRows } = await supabase
+                                  .from('inventory')
+                                  .select('*')
+                                  .eq('base_item_id', editingItem.id)
+                                  .order('created_at', { ascending: true });
+                                setExistingVariants(variantRows || []);
+                              }
+                            }
+                          }}>Delete</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons (Save/Cancel) */}
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
             <Button variant="secondary" onClick={handleCancel} className="w-full sm:w-auto py-2 sm:py-2.5 text-base">
               Cancel
@@ -578,6 +1028,7 @@ export default function InventoryPage() {
             <table className="min-w-[800px] w-full divide-y divide-gray-200 text-sm sm:text-base">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost Price</th>
@@ -589,11 +1040,23 @@ export default function InventoryPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-500">No inventory items found.</td>
+                    <td colSpan={7} className="text-center py-8 text-gray-500">No inventory items found.</td>
                   </tr>
                 ) : (
                   filteredItems.map((item) => (
                     <tr key={item.id}>
+                      <td className="px-4 sm:px-6 py-4">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-12 h-12 object-contain rounded border bg-white" />
+                        ) : (
+                          <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border">
+                            <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+                              <path d="M8 15l2-2a2 2 0 0 1 2.83 0l2.34 2.34M8 11h.01M16 11h.01" stroke="currentColor" strokeWidth="2" />
+                            </svg>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 sm:px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{item.name}</div>
