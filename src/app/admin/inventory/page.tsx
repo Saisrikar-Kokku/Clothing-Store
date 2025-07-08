@@ -95,13 +95,6 @@ export default function InventoryPage() {
     image: '',
     has_variants: false,
   });
-  const [variants, setVariants] = useState<Array<{
-    name: string;
-    color: string;
-    quantity: string;
-    selling_price: string;
-    image: string;
-  }>>([]);
   const [customCategory, setCustomCategory] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -115,6 +108,7 @@ export default function InventoryPage() {
   const [newVariants, setNewVariants] = useState<VariantForm[]>([]);
   const [existingVariants, setExistingVariants] = useState<VariantDB[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [variantSuccessMessage, setVariantSuccessMessage] = useState('');
 
   // Move fetchInventory above handleRefresh
   const fetchInventory = async () => {
@@ -147,6 +141,10 @@ export default function InventoryPage() {
       setExistingVariants([]);
     }
   }, [editingItem]);
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const filteredItems = items.filter(item => {
     const matchesSearch =
@@ -206,7 +204,7 @@ export default function InventoryPage() {
       imageUrl = publicUrlData.publicUrl;
     }
     // Always set has_variants true if variants are present
-    const hasVariants = formData.has_variants || (variants && variants.length > 0);
+    const hasVariants = formData.has_variants || (newVariants && newVariants.length > 0);
     // Insert the main item
     const { data: insertedItem, error: insertError } = await supabase.from('inventory').insert([
       {
@@ -227,8 +225,8 @@ export default function InventoryPage() {
     }
     // If there are variants, insert them
     const variantInsertErrors: string[] = [];
-    if (hasVariants && variants.length > 0 && insertedItem) {
-      const variantPromises = variants.map(async (variant) => {
+    if (hasVariants && newVariants.length > 0 && insertedItem) {
+      const variantPromises = newVariants.map(async (variant) => {
         let variantImageUrl = '';
         if (variant.image) {
           function dataURLtoFile(dataurl: string, filename: string) {
@@ -268,7 +266,7 @@ export default function InventoryPage() {
     }
     if (variantInsertErrors.length > 0) {
       alert('Some variants failed to add: ' + variantInsertErrors.join(', '));
-    } else if (hasVariants && variants.length > 0) {
+    } else if (hasVariants && newVariants.length > 0) {
       alert('All variants added successfully!');
     }
     setSuccessMessage('Item successfully added!');
@@ -284,7 +282,6 @@ export default function InventoryPage() {
       image: '',
       has_variants: false,
     });
-    setVariants([]);
     setCustomCategory('');
     const { data, error } = await supabase
       .from('inventory')
@@ -297,6 +294,12 @@ export default function InventoryPage() {
     window.dispatchEvent(new Event('inventory-updated'));
     localStorage.setItem('dashboard-data-updated', Date.now().toString());
     window.dispatchEvent(new Event('dashboard-data-updated'));
+    if (hasVariants && newVariants.length > 0 && insertedItem) {
+      await supabase
+        .from('inventory')
+        .update({ has_variants: true })
+        .eq('id', insertedItem.id);
+    }
   };
 
   const handleEditItem = (item: InventoryItem) => {
@@ -318,7 +321,7 @@ export default function InventoryPage() {
     setLoading(true);
     try {
       // Always set has_variants true if variants are present
-      const hasVariants = formData.has_variants || (variants && variants.length > 0);
+      const hasVariants = formData.has_variants || (newVariants && newVariants.length > 0);
       // Update the main item
       const { error: updateError } = await supabase
         .from('inventory')
@@ -340,8 +343,8 @@ export default function InventoryPage() {
       }
       // Insert new variants if any
       const variantInsertErrors: string[] = [];
-      if (hasVariants && variants.length > 0) {
-        const variantPromises = variants.map(async (variant) => {
+      if (hasVariants && newVariants.length > 0) {
+        const variantPromises = newVariants.map(async (variant) => {
           let variantImageUrl = '';
           if (variant.image) {
             function dataURLtoFile(dataurl: string, filename: string) {
@@ -381,7 +384,7 @@ export default function InventoryPage() {
       }
       if (variantInsertErrors.length > 0) {
         alert('Some variants failed to add: ' + variantInsertErrors.join(', '));
-      } else if (hasVariants && variants.length > 0) {
+      } else if (hasVariants && newVariants.length > 0) {
         alert('All variants added successfully!');
       }
       setSuccessMessage('Item successfully updated!');
@@ -405,13 +408,18 @@ export default function InventoryPage() {
         image: '',
         has_variants: false,
       });
-      setVariants([]);
       setCustomCategory('');
       // Trigger events to refresh admin dashboard
       localStorage.setItem('inventory-updated', Date.now().toString());
       window.dispatchEvent(new Event('inventory-updated'));
       localStorage.setItem('dashboard-data-updated', Date.now().toString());
       window.dispatchEvent(new Event('dashboard-data-updated'));
+      if (hasVariants && newVariants.length > 0) {
+        await supabase
+          .from('inventory')
+          .update({ has_variants: true })
+          .eq('id', editingItem.id);
+      }
     } catch (error) {
       alert('Error updating item: ' + (error as Error).message);
     } finally {
@@ -490,7 +498,7 @@ export default function InventoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-2 sm:gap-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Inventory Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 uppercase">INVENTORY MANAGEMENT</h1>
           <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your store inventory</p>
         </div>
         <div className="flex gap-2 items-center">
@@ -669,115 +677,161 @@ export default function InventoryPage() {
 
           {/* Variants Section (add new variants) */}
           {formData.has_variants && (
-            <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">Color Variants</h4>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setNewVariants([...newVariants, {
-                    name: '',
-                    color: '',
-                    quantity: '',
-                    selling_price: '',
-                    image: ''
-                  }])}
-                  className="flex items-center"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Variant
-                </Button>
-              </div>
-              {newVariants.length === 0 ? (
-                <p className="text-gray-500 text-sm">No variants added yet. Click &quot;Add Variant&quot; to add color options.</p>
-              ) : (
-                <div className="space-y-4">
-                  {newVariants.map((variant, index) => (
-                    <div key={index} className="p-4 border border-gray-200 rounded-lg bg-white">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Variant Name</label>
-                          <input
-                            type="text"
-                            value={variant.name}
-                            onChange={e => {
-                              const updated = [...newVariants];
-                              updated[index].name = e.target.value;
-                              setNewVariants(updated);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
-                          <input
-                            type="text"
-                            value={variant.color}
-                            onChange={e => {
-                              const updated = [...newVariants];
-                              updated[index].color = e.target.value;
-                              setNewVariants(updated);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
-                          <input
-                            type="number"
-                            value={variant.quantity}
-                            onChange={e => {
-                              const updated = [...newVariants];
-                              updated[index].quantity = e.target.value;
-                              setNewVariants(updated);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={variant.selling_price}
-                            onChange={e => {
-                              const updated = [...newVariants];
-                              updated[index].selling_price = e.target.value;
-                              setNewVariants(updated);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Variant Image (Optional)</label>
+            <div className="mt-8">
+              <h4 className="text-base font-semibold mb-2">Add Variants</h4>
+              {variantSuccessMessage && (
+                <div className="mb-2 p-2 bg-green-100 text-green-800 rounded border border-green-300 text-center text-sm">
+                  {variantSuccessMessage}
+                </div>
+              )}
+              <div className="space-y-4">
+                {newVariants.map((variant, index) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg bg-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Variant Name</label>
                         <input
-                          type="file"
-                          accept="image/*"
+                          type="text"
+                          value={variant.name}
                           onChange={e => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                const updated = [...newVariants];
-                                updated[index].image = reader.result as string;
-                                setNewVariants(updated);
-                              };
-                              reader.readAsDataURL(file);
-                            }
+                            const updated = [...newVariants];
+                            updated[index].name = e.target.value;
+                            setNewVariants(updated);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         />
-                        {variant.image && (
-                          <Image src={variant.image} alt="Variant Preview" width={48} height={48} className="mt-2 h-16 object-contain border rounded" />
-                        )}
                       </div>
-                      <Button type="button" variant="danger" size="sm" onClick={() => setNewVariants(newVariants.filter((_, i) => i !== index))} className="mt-2">Remove</Button>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
+                        <input
+                          type="text"
+                          value={variant.color}
+                          onChange={e => {
+                            const updated = [...newVariants];
+                            updated[index].color = e.target.value;
+                            setNewVariants(updated);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                        <input
+                          type="number"
+                          value={variant.quantity}
+                          onChange={e => {
+                            const updated = [...newVariants];
+                            updated[index].quantity = e.target.value;
+                            setNewVariants(updated);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={variant.selling_price}
+                          onChange={e => {
+                            const updated = [...newVariants];
+                            updated[index].selling_price = e.target.value;
+                            setNewVariants(updated);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Variant Image (Optional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const updated = [...newVariants];
+                              updated[index].image = reader.result as string;
+                              setNewVariants(updated);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      {variant.image && (
+                        <Image src={variant.image} alt="Variant Preview" width={48} height={48} className="mt-2 h-16 object-contain border rounded" />
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={async () => {
+                          // Insert this variant into Supabase
+                          setLoading(true);
+                          let variantImageUrl = '';
+                          if (variant.image) {
+                            function dataURLtoFile(dataurl: string, filename: string) {
+                              const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+                              for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+                              return new File([u8arr], filename, { type: mime });
+                            }
+                            const file = dataURLtoFile(variant.image, `${variant.name.replace(/\s+/g, '_')}_${Date.now()}.png`);
+                            const { error } = await supabase.storage.from('inventory-images').upload(file.name, file, { upsert: true });
+                            if (!error) {
+                              const { data: publicUrlData } = supabase.storage.from('inventory-images').getPublicUrl(file.name);
+                              variantImageUrl = publicUrlData.publicUrl;
+                            }
+                          }
+                          const { error: variantInsertError } = await supabase.from('inventory').insert([
+                            {
+                              name: variant.name,
+                              category: formData.category === 'Other (Custom)' ? customCategory : formData.category,
+                              description: `${formData.description} - ${variant.color} variant`,
+                              cost_price: parseFloat(formData.cost_price),
+                              selling_price: parseFloat(variant.selling_price) || parseFloat(formData.selling_price),
+                              quantity: parseInt(variant.quantity) || 0,
+                              image_url: variantImageUrl,
+                              has_variants: false,
+                              base_item_id: editingItem ? editingItem.id : null,
+                            },
+                          ]);
+                          setLoading(false);
+                          if (variantInsertError) {
+                            setVariantSuccessMessage('Failed to add variant: ' + variant.name);
+                          } else {
+                            setVariantSuccessMessage('Variant added successfully!');
+                            // Remove the variant from the form
+                            setNewVariants(newVariants.filter((_, i) => i !== index));
+                            // Optionally, refetch variants for the item
+                            if (editingItem) {
+                              const { data: variantRows } = await supabase
+                                .from('inventory')
+                                .select('*')
+                                .eq('base_item_id', editingItem.id)
+                                .order('created_at', { ascending: true });
+                              setExistingVariants(variantRows || []);
+                            }
+                          }
+                          setTimeout(() => setVariantSuccessMessage(''), 2000);
+                        }}
+                      >Add Variant</Button>
+                      <Button type="button" variant="danger" size="sm" onClick={() => setNewVariants(newVariants.filter((_, i) => i !== index))}>Remove</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-4"
+                onClick={() => setNewVariants([...newVariants, { name: '', color: '', quantity: '', selling_price: '', image: '' }])}
+              >+ Add Another Variant</Button>
             </div>
           )}
 

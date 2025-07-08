@@ -73,9 +73,6 @@ export default function AdminNavigation() {
             <div className="flex-shrink-0 flex items-center">
               <Link href="/admin" className="flex items-center space-x-2">
                 <Settings className="w-6 h-6 text-blue-600" />
-                <h1 className="text-xl sm:text-2xl font-extrabold harika-gradient-heading harika-gradient-move" style={{ letterSpacing: '0.03em', lineHeight: 1.1 }}>
-                  Harika Clothing Store
-                </h1>
               </Link>
             </div>
             

@@ -40,9 +40,12 @@ export default function Navigation() {
           {/* Left: Logo and Nav Links */}
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl sm:text-2xl font-extrabold harika-gradient-heading harika-gradient-move" style={{ letterSpacing: '0.03em', lineHeight: 1.1 }}>
-                Harika Clothing Store
-              </h1>
+              <span
+                className="font-extrabold tracking-wider text-xl sm:text-2xl text-transparent bg-clip-text harika-animated-gradient harika-glow transition-transform duration-300 hover:scale-105"
+                style={{ letterSpacing: '0.08em', lineHeight: 1.1 }}
+              >
+                HARIKA CLOTHING STORE
+              </span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => {

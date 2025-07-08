@@ -1,8 +1,10 @@
-export const dynamic = "force-dynamic";
+import { cookies } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Suspense } from "react";
 import ProductDetailClient from "@/components/ProductDetailClient";
+
+export const dynamic = "force-dynamic";
 
 function LoadingSpinner() {
   return (
@@ -15,12 +17,14 @@ function LoadingSpinner() {
   );
 }
 
-async function ProductDetailContent({ params }: { params: { id: string } }) {
+async function ProductDetailContent({ id }: { id: string }) {
+  const supabase = createServerComponentClient({ cookies });
+
   // Fetch the main item
   const { data: item, error: itemError } = await supabase
     .from('inventory')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (itemError || !item) {
@@ -65,7 +69,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <ProductDetailContent params={{ id }} />
+      <ProductDetailContent id={id} />
     </Suspense>
   );
 } 

@@ -55,3 +55,18 @@ body {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.harika-animated-gradient {
+  background: linear-gradient(270deg, #ec4899, #ef4444, #f59e42, #facc15, #ec4899);
+  background-size: 1000% 1000%;
+  animation: harika-gradient-move 6s linear infinite;
+}
+
+@keyframes harika-gradient-move {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.harika-glow {
+  text-shadow: 0 0 8px #fbbf24, 0 0 16px #f472b6, 0 0 2px #fff;
+}
